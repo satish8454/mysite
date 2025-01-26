@@ -15,6 +15,8 @@ from chatapp.models import Message  # Replace with your app's Message model
 # Dictionary to track active connections
 active_connections = {}
 
+PORT = int(os.environ.get("PORT", 8000))
+
 async def chat_server(websocket, path):
     """
     WebSocket handler to manage chat messages.
@@ -94,8 +96,8 @@ async def start_ws_server():
     Start the WebSocket server.
     """
     print("Starting WebSocket server...")
-    async with websockets.serve(chat_server, "localhost", 8080):
-        print("WebSocket server started on ws://localhost:8080")
+    async with websockets.serve(chat_server, "localhost", PORT):
+        print("WebSocket server started on ws://localhost:8000")
         await asyncio.Future()  # Keep the server running indefinitely
 
 if __name__ == "__main__":
