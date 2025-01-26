@@ -97,7 +97,7 @@ async def start_ws_server():
     """
     print("Starting WebSocket server...")
     async with websockets.serve(chat_server, "localhost", PORT):
-        print("WebSocket server started on ws://localhost:"+PORT)
+        print("WebSocket server started on ws://localhost:",PORT)
         await asyncio.Future()  # Keep the server running indefinitely
 
 if __name__ == "__main__":
