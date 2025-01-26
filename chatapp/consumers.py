@@ -1,56 +1,87 @@
-# consumers.py
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-from .models import Message
 from django.contrib.auth.models import User
+from channels.db import database_sync_to_async
+from chatapp.models import Message  # Replace with your app's Message model
+
+# Dictionary to track active connections
+active_connections = {}
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user_id = self.scope['user'].id
-        self.receiver_id = self.scope['url_route']['kwargs']['user_id']
+        """
+        Handle the WebSocket connection.
+        """
+        self.pair_id = self.scope['url_route']['kwargs']['pair_id']
         
-        # Channel name for the user connection
-        self.room_group_name = f'chat_{min(self.user_id, self.receiver_id)}_{max(self.user_id, self.receiver_id)}'
+        # Add the connection to the active_connections dictionary
+        if self.pair_id in active_connections:
+            active_connections[self.pair_id].append(self)
+        else:
+            active_connections[self.pair_id] = [self]
         
-        # Join the WebSocket group
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        # Accept the WebSocket connection
         await self.accept()
 
     async def disconnect(self, close_code):
-        # Leave the WebSocket group
-        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        """
+        Handle the WebSocket disconnection.
+        """
+        if self.pair_id in active_connections:
+            active_connections[self.pair_id].remove(self)
+            # Remove pair_id from active_connections if no active WebSocket remains
+            if not active_connections[self.pair_id]:
+                del active_connections[self.pair_id]
 
     async def receive(self, text_data):
-        print("Hi")
+        """
+        Handle incoming WebSocket messages.
+        """
         data = json.loads(text_data)
-        message = data['message']
-        receiver_id = data['reciever_id']
+        await self.handle_message(data)
 
-        # Get the sender and receiver users
-        sender = User.objects.get(id=self.user_id)
-        receiver = User.objects.get(id=receiver_id)
+    async def handle_message(self, data):
+        """
+        Process the received message and broadcast it to connected clients.
+        """
+        message_content = data.get("message")
+        sender_id = data.get("sender_id")
+        receiver_id = data.get("receiver_id")
         
-        # Save the message to the database
-        chat_message = Message(sender=sender, receiver=receiver, content=message)
-        chat_message.save()
+        if message_content and sender_id:
+            try:
+                sender = await self.get_user(sender_id)
+                receiver = await self.get_user(receiver_id)
 
-        # Send the message to WebSocket (broadcasting to the other user)
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': message,
-                'sender': sender.username
-            }
-        )
+                # Prepare the message to send to WebSocket clients
+                response_data = {
+                    'sender': sender.username,
+                    'message': message_content
+                }
 
-    # Receive message from WebSocket
-    async def chat_message(self, event):
-        message = event['message']
-        sender = event['sender']
-        
-        # Send message to WebSocket
-        await self.send(text_data=json.dumps({
-            'message': message,
-            'sender': sender
-        }))
+                # Save the message to the database
+                await self.save_message(sender, receiver, message_content)
+
+                # Broadcast message to the WebSocket connections in the pair
+                for connection in active_connections.get(self.pair_id, []):
+                    await connection.send(text_data=json.dumps(response_data))
+
+            except User.DoesNotExist:
+                await self.send(text_data=json.dumps({'error': 'Invalid user or receiver not found'}))
+
+    @database_sync_to_async
+    def get_user(self, user_id):
+        """
+        Fetch the user from the database.
+        """
+        try:
+            return User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise User.DoesNotExist
+
+    @database_sync_to_async
+    def save_message(self, sender, receiver, content):
+        """
+        Save the message to the database.
+        """
+        Message.objects.create(sender=sender, receiver=receiver, content=content)
