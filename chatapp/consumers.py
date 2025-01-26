@@ -3,13 +3,14 @@ import django
 from channels.db import database_sync_to_async
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+# Set up Django environment properly
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')  # Use your settings module here
+django.setup()  # Make sure Django is set up before importing models
+
+# Now, you can safely import Django models after setup
 from django.contrib.auth.models import User
-from chatapp.models import Message  # Replace with your app's Message model
-
-# Initialize Django settings and setup
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')  # Replace 'mysite' with your project name
-django.setup()
-
+from chatapp.models import Message
 # Dictionary to track active connections
 active_connections = {}
 
