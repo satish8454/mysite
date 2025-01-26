@@ -1,8 +1,14 @@
+import os
+import django
+from channels.db import database_sync_to_async
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import User
-from channels.db import database_sync_to_async
 from chatapp.models import Message  # Replace with your app's Message model
+
+# Initialize Django settings and setup
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')  # Replace 'mysite' with your project name
+django.setup()
 
 # Dictionary to track active connections
 active_connections = {}
