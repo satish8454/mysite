@@ -55,9 +55,10 @@
 
         .message {
             max-width: 60%;
-            padding: 5px;
+            padding: 10px;
             border-radius: 10px;
             margin: 5px 0;
+            position: relative;
         }
 
         .message.sender {
@@ -72,8 +73,15 @@
             text-align: left;
         }
 
+        .timestamp {
+            font-size: 0.6rem;
+            color: #6c757d;
+            margin-top: 5px;
+            display: block;
+        }
+
         .chat-input {
-            display: flex;
+            display: none;
             gap: 10px;
             padding: 10px;
             border-top: 1px solid #ddd;
@@ -107,36 +115,6 @@
             color: white;
         }
 
-        /* Username hover styling for logout button */
-        #username-container {
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-        }
-
-        #logout-btn {
-            display: none;
-            position: absolute;
-            top: 0;
-            right: 0;
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 5px 10px;
-            cursor: pointer;
-        }
-
-        #username-container:hover #logout-btn {
-            display: block;
-        }
-
-        /* Hide chat input and send button initially */
-        .chat-input {
-            display: none;
-        }
-
-        /* Placeholder message when no user is selected */
         #chat-box-placeholder {
             color: #888;
             text-align: center;
@@ -145,20 +123,17 @@
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">Chat Application</a>
             <div id="username-container">
-                <span class="text-white ms-auto" id="username" dat-username="{{ user.username }}">{{ user.username }}</span>
+                <span class="text-white ms-auto" id="username" data-username="{{ user.username }}">{{ user.username }}</span>
                 <button id="logout-btn" class="btn btn-danger btn-sm">Logout</button>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
     <div class="main-container">
-        <!-- Left Sidebar -->
         <div class="sidebar" id="sidebar">
             <h5 class="p-3">User List</h5>
             <ul class="list-group list-group-flush">
@@ -168,7 +143,6 @@
             </ul>
         </div>
 
-        <!-- Chat Section -->
         <div class="chat-section">
             <div class="chat-box bg-white" id="chat-box">
                 <div id="chat-box-placeholder">Please select a user to start chatting</div>
@@ -180,24 +154,20 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
-
     <script>
         let activeUserId = null;
         let senderId = null;
         let socket;
         let username = null;
-        
+
         document.querySelectorAll(".user-item").forEach(item => {
             item.addEventListener("click", function () {
                 document.querySelectorAll(".user-item").forEach(user => user.classList.remove("active"));
-                // Add 'active' class to the clicked user
                 this.classList.add("active");
                 const userId = this.getAttribute("data-user-id");
-                loadMessages(userId); // Load old messages for the selected user
-                openChatSocket(userId); // Open WebSocket connection when a user is selected
-                showChatInput(); // Show the input and send button
+                loadMessages(userId);
+                openChatSocket(userId);
+                showChatInput();
             });
         });
 
@@ -216,24 +186,28 @@
                 const data = JSON.parse(event.data);
                 const message = data.message;
                 const sender = data.sender;
+                const timestamp = data.timestamp;
                 const isSender = sender === username;
 
-                displayMessage(message, isSender);
+                displayMessage(message, isSender, timestamp);
             };
         }
 
-        function displayMessage(message, isSender) {
+        function displayMessage(message, isSender, timestamp) {
             const chatBox = document.getElementById("chat-box");
             const messageDiv = document.createElement("div");
             messageDiv.className = `message ${isSender ? 'sender' : 'receiver'}`;
-            messageDiv.textContent = message;
+            messageDiv.innerHTML = `
+                <div>${message}</div>
+                <span class="timestamp">${timestamp}</span>
+            `;
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         function loadMessages(userId) {
             username1 = document.getElementById("username");
-            username = username1.getAttribute("dat-username");
+            username = username1.getAttribute("data-username");
             activeUserId = userId;
             fetch(`/fetch_messages/${userId}/`)
                 .then(response => response.json())
@@ -242,7 +216,7 @@
                     chatBox.innerHTML = "";
                     messages.forEach(msg => {
                         const isSender = msg.sender === username;
-                        displayMessage(msg.content, isSender);
+                        displayMessage(msg.content, isSender, msg.timestamp);
                     });
                 });
         }
@@ -267,20 +241,14 @@
                     sender_id: senderId,
                     receiver_id: activeUserId
                 }));
-                messageInput.value = ""; // Clear input field after sending
+                messageInput.value = "";
             }
         }
 
         function showChatInput() {
-            document.getElementById("chat-input").style.display = "flex"; // Show input box and send button
-            document.getElementById("chat-box-placeholder").style.display = "none"; // Hide placeholder
+            document.getElementById("chat-input").style.display = "flex";
+            document.getElementById("chat-box-placeholder").style.display = "none";
         }
-
-        // Logout functionality
-        document.getElementById("logout-btn").addEventListener("click", function () {
-            // Redirect to logout endpoint or clear session
-            window.location.href = '/logout'; // Update this with the appropriate logout URL
-        });
     </script>
 </body>
 </html>

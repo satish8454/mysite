@@ -3,6 +3,7 @@ import django
 from channels.db import database_sync_to_async
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+from datetime import datetime
 
 # Set up Django environment properly
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')  # Use your settings module here
@@ -63,7 +64,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # Prepare the message to send to WebSocket clients
                 response_data = {
                     'sender': sender.username,
-                    'message': message_content
+                    'message': message_content,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M")
                 }
 
                 # Save the message to the database
