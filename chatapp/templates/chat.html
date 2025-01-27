@@ -44,16 +44,12 @@
             width: 0;
         }
 
+
         .chat-section {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             transition: width 0.3s ease-in-out;
-            width: calc(100% - 250px); /* Default width when sidebar is open */
-        }
-
-        .chat-section.full-width {
-            width: 100%; /* Full width when sidebar is collapsed */
         }
 
         .chat-box {
@@ -133,16 +129,22 @@
             text-align: center;
             margin-top: 20px;
         }
+        #toggle-sidebar {
+            cursor: pointer;
+            color: white;
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
-            <button class="btn btn-light me-2" id="toggle-sidebar">☰</button>
+            <span id="toggle-sidebar" class="navbar-toggler-icon"></span>
             <a class="navbar-brand" href="#">Chat Application</a>
             <div id="username-container">
                 <span class="text-white ms-auto" id="username" data-username="{{ user.username }}">{{ user.username }}</span>
-                <button id="logout-btn" class="btn btn-danger btn-sm">Logout</button>
+                <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
             </div>
         </div>
     </nav>
@@ -157,7 +159,7 @@
             </ul>
         </div>
 
-        <div class="chat-section" id="chat-section">
+        <div class="chat-section">
             <div class="chat-box bg-white" id="chat-box">
                 <div id="chat-box-placeholder">Please select a user to start chatting</div>
             </div>
@@ -169,14 +171,16 @@
     </div>
 
     <script>
-        const sidebar = document.getElementById("sidebar");
-        const chatSection = document.getElementById("chat-section");
-        const toggleSidebar = document.getElementById("toggle-sidebar");
+        let sidebar = document.getElementById("sidebar");
+        let toggleSidebarButton = document.getElementById("toggle-sidebar");
 
-        toggleSidebar.addEventListener("click", function () {
+        toggleSidebarButton.addEventListener("click", function () {
             sidebar.classList.toggle("collapsed");
-            chatSection.classList.toggle("full-width");
         });
+        let activeUserId = null;
+        let senderId = null;
+        let socket;
+        let username = null;
 
         document.querySelectorAll(".user-item").forEach(item => {
             item.addEventListener("click", function () {
@@ -184,22 +188,31 @@
                 this.classList.add("active");
                 const userId = this.getAttribute("data-user-id");
                 loadMessages(userId);
+                openChatSocket(userId);
                 showChatInput();
             });
         });
 
-        function loadMessages(userId) {
-            activeUserId = userId;
-            fetch(`/fetch_messages/${userId}/`)
-                .then(response => response.json())
-                .then(messages => {
-                    const chatBox = document.getElementById("chat-box");
-                    chatBox.innerHTML = "";
-                    messages.forEach(msg => {
-                        const isSender = msg.sender === "{{ user.username }}";
-                        displayMessage(msg.content, isSender, msg.timestamp);
-                    });
-                });
+        function openChatSocket(receiverId) {
+            const loggedInUserId = {{ user.id }};
+            senderId = loggedInUserId;
+            const pairId = (loggedInUserId < receiverId) ? `${loggedInUserId}_${receiverId}` : `${receiverId}_${loggedInUserId}`;
+
+            if (socket) {
+                socket.close();
+            }
+
+            socket = new WebSocket(`ws://${window.location.host}/ws/chat/${pairId}/`);
+
+            socket.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                const message = data.message;
+                const sender = data.sender;
+                const timestamp = data.timestamp;
+                const isSender = sender === username;
+
+                displayMessage(message, isSender, timestamp);
+            };
         }
 
         function displayMessage(message, isSender, timestamp) {
@@ -212,6 +225,46 @@
             `;
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function loadMessages(userId) {
+            username1 = document.getElementById("username");
+            username = username1.getAttribute("data-username");
+            activeUserId = userId;
+            fetch(`/fetch_messages/${userId}/`)
+                .then(response => response.json())
+                .then(messages => {
+                    const chatBox = document.getElementById("chat-box");
+                    chatBox.innerHTML = "";
+                    messages.forEach(msg => {
+                        const isSender = msg.sender === username;
+                        displayMessage(msg.content, isSender, msg.timestamp);
+                    });
+                });
+        }
+
+        document.getElementById("send-message").addEventListener("click", function () {
+            sendMessage();
+        });
+
+        document.getElementById("message-input").addEventListener("keydown", function (event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const messageInput = document.getElementById("message-input");
+            const message = messageInput.value.trim();
+            if (message && senderId && socket) {
+                socket.send(JSON.stringify({
+                    message: message,
+                    sender_id: senderId,
+                    receiver_id: activeUserId
+                }));
+                messageInput.value = "";
+            }
         }
 
         function showChatInput() {
