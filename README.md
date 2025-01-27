@@ -4,65 +4,42 @@ This project is real-time chat application which built using django and daphne f
 
 ## Prerequisites
 
-In order to run the python script, your system must have the following programs/packages installed and the contact number should be saved in your phone (You can use bulk contact number saving procedure of email). There is a way without saving the contact number but has the limitation to send the attachment.
+In order to run the python script, your system must have the following programs/packages installed
 * Python 3.x
 
-## Approach
+## steps to 
 
-### step 1
+### step 1 : clone the project
 ```
+git clone https://github.com/satish8454/mysite.git
+```
+### step 2 : open cmd and change the directory to /mysite
+
+### step 3 : create virual environment and activate it
+on windows
+```
+pip install pipenv
+pipenv shell
+```
+on ubuntu
+```
+sudo pip3 install virtualenv 
+virtualenv venv
+source venv/bin/activate
+```
+### step 3 : install the reuirements
+```
+pip install -r requirements.txt
+```
+### step 4 : make migrations in database
+```
+python manage.py makemigrations
+python manage.py migrate
+```
+### step 5 : run the server
+```
+python manage.py runserver
 ```
 
-## Server Code
-```
-# Program to accept client request
-# Author @inforkgodara
-
-import socket
-
-s = socket.socket()
-host = socket.gethostname()
-print(' Server will start on host : ', host)
-port = 8080
-s.bind((host, port))
-print()
-print('Waiting for connection')
-print()
-s.listen(1)
-conn, addr = s.accept()
-print(addr, ' Has connected to the server')
-print()
-while 1:
-    message = input(str('>> '))
-    message = message.encode()
-    conn.send(message)
-    print('Sent')
-    print()
-    incoming_message = conn.recv(1024)
-    incoming_message = incoming_message.decode()
-    print(' Client : ', incoming_message)
-    print()
-```
-## Client Code
-```
-# Program to send request to the server
-# Author @inforkgodara
-
-import socket
-
-s = socket.socket()
-host = input(str('Enter hostname or host IP : '))
-port = 8080
-s.connect((host, port))
-print('Connected to chat server')
-while 1:
-    incoming_message = s.recv(1024)
-    incoming_message = incoming_message.decode()
-    print(' Server : ', incoming_message)
-    print()
-    message = input(str('>> '))
-    message = message.encode()
-    s.send(message)
-    print('Sent')
-    print()
-```
+If server runs successfully below will reflect on bash
+Starting ASGI/Daphne version 4.1.2 development server at http://127.0.0.1:8000/
